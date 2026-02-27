@@ -4,7 +4,6 @@ import sys
 import json
 import wave
 from xml.parsers.expat import model
-import sounddevice as sd
 import vosk
 import requests
 from tqdm import tqdm
@@ -40,53 +39,8 @@ def check_and_download_model(model_name="vosk-model-small-en-us-0.15"):
         print("Model ready.")
     return model_name
 
-# --- 2. Audio Recorder ---
-class AudioRecorder:
-    def __init__(self, output_filename="temp_meeting.wav", sample_rate=16000):
-        self.output_filename = output_filename
-        self.sample_rate = sample_rate
-        self.audio_queue = queue.Queue()
-        self.recording = False
-        self.wav_file = None
-        self.stream = None
-
-    def _callback(self, indata, frames, time, status):
-        if status:
-            print(f"Audio Error: {status}", file=sys.stderr)
-        self.audio_queue.put(bytes(indata))
-
-    def start(self):
-        self.recording = True
-        self.wav_file = wave.open(self.output_filename, "wb")
-        self.wav_file.setnchannels(1)
-        self.wav_file.setsampwidth(2)
-        self.wav_file.setframerate(self.sample_rate)
-        
-        # Determine device (defaults to system default)
-        self.stream = sd.RawInputStream(
-            samplerate=self.sample_rate,
-            blocksize=4000,
-            dtype="int16",
-            channels=1,
-            callback=self._callback
-        )
-        self.stream.start()
-
-    def stop(self):
-        self.recording = False
-        if self.stream:
-            self.stream.stop()
-            self.stream.close()
-        if self.wav_file:
-            self.wav_file.close()
-
-    def process_queue(self):
-        """Reads queue and yields data for live processing."""
-        while not self.audio_queue.empty():
-            data = self.audio_queue.get()
-            if self.wav_file:
-                self.wav_file.writeframes(data)
-            yield data
+# --- 2. Audio Recorder (Removed for Cloud Compatibility) ---
+# Transitioned to browser-based recording in app.py
 
 # --- 3. Speech to Text Engine ---
 # --- 3. Speech to Text Engine (Groq Whisper) ---

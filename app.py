@@ -1,7 +1,8 @@
 import streamlit as st
 import time
 # Import backend logic
-from backend import AudioRecorder, STTEngine, MeetingSummarizer, save_to_md, send_email_func
+from backend import STTEngine, MeetingSummarizer, save_to_md, send_email_func
+from streamlit_mic_recorder import mic_recorder
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -110,6 +111,8 @@ if "transcript" not in st.session_state:
     st.session_state.transcript = ""
 if "summary" not in st.session_state:
     st.session_state.summary = ""
+if "last_audio" not in st.session_state:
+    st.session_state.last_audio = None
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -150,38 +153,33 @@ with col_controls:
     
     # Glassmorphism Card Effect
     with st.container(border=True):
-        if not st.session_state.is_recording:
-            st.info("Ready to capture audio session.")
-            if st.button("▶️ Start Recording", type="primary", use_container_width=True):
-                st.session_state.is_recording = True
-                st.session_state.recorder = AudioRecorder()
-                st.session_state.recorder.start()
-                st.rerun()
-        else:
-            st.warning("Microphone is live...")
-            if st.button("⏹️ Stop & Process", type="secondary", use_container_width=True):
-                st.session_state.is_recording = False
-                st.session_state.recorder.stop()
-                
-                # --- LOGIC ---
-                if not groq_key:
-                    st.error("Please enter Groq API Key first!")
-                else:
-                    with st.spinner("Transcribing with high-accuracy Whisper model..."):
-                        # Re-initialize STT with the key
-                        stt_engine = STTEngine(api_key=groq_key)
-                        # The recorder saves to "temp_meeting.wav" by default
-                        final_text = stt_engine.transcribe_file("temp_meeting.wav")
-                        st.session_state.transcript = final_text
-                
-                st.rerun()
+        st.info("Record your meeting audio below.")
+        
+        # Browser-based Mic Recorder
+        audio = mic_recorder(
+            start_prompt="▶️ Start Recording",
+            stop_prompt="⏹️ Stop & Process",
+            key='recorder',
+            use_container_width=True
+        )
 
-    # Live Loop for Recording (Visual Feedback)
-    if st.session_state.is_recording:
-        for data in st.session_state.recorder.process_queue():
-            pass
-        time.sleep(0.05)
-        st.rerun()
+        if audio:
+            # When recording stops, 'audio' will contain the bytes
+            st.session_state.last_audio = audio['bytes']
+            
+            # Save to temporary file for Whisper processing
+            with open("temp_meeting.wav", "wb") as f:
+                f.write(audio['bytes'])
+            
+            # Auto-process after recording
+            if not groq_key:
+                st.error("Please enter Groq API Key first!")
+            else:
+                with st.spinner("Transcribing with high-accuracy Whisper model..."):
+                    stt_engine = STTEngine(api_key=groq_key)
+                    final_text = stt_engine.transcribe_file("temp_meeting.wav")
+                    st.session_state.transcript = final_text
+                    st.rerun()
 
 with col_transcript:
     st.subheader("📝 Transcript")
