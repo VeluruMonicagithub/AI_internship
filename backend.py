@@ -128,4 +128,4 @@ def send_email_func(user, password, recipient, subject, body):
         server.quit()
         return "Email sent!"
     except Exception as e:
-        return f"Email Error: {e}"
+        return f"Email Error: {e}" 
